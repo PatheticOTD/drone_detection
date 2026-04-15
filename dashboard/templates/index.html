@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Drone Detection System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --card: #1a1d27;
+            --border: #2a2d3a;
+            --text: #e0e0e0;
+            --muted: #888;
+            --green: #00e676;
+            --red: #ff1744;
+            --yellow: #ffea00;
+            --blue: #448aff;
+            --orange: #ff9100;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+        header {
+            background: var(--card);
+            border-bottom: 1px solid var(--border);
+            padding: 16px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        header h1 { font-size: 1.4rem; letter-spacing: 1px; }
+        #connection-status {
+            padding: 4px 14px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+        .connected { background: rgba(0,230,118,.15); color: var(--green); }
+        .disconnected { background: rgba(255,23,68,.15); color: var(--red); }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 24px 32px;
+        }
+        @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+        .card {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card h2 { font-size: 1rem; margin-bottom: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+        /* Alert banner */
+        #alert-banner {
+            margin: 16px 32px 0;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 1.2rem;
+            font-weight: 700;
+            text-align: center;
+            transition: all .3s;
+        }
+        .alert-clear { background: rgba(0,230,118,.1); color: var(--green); border: 1px solid var(--green); }
+        .alert-detected { background: rgba(255,23,68,.12); color: var(--red); border: 1px solid var(--red); animation: pulse 1s infinite; }
+        @keyframes pulse { 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
+
+        /* Sensor bars */
+        .sensor-bar { margin-bottom: 14px; }
+        .sensor-bar label { display: flex; justify-content: space-between; margin-bottom: 4px; font-size: .85rem; }
+        .bar-bg { background: #2a2d3a; border-radius: 6px; height: 22px; overflow: hidden; }
+        .bar-fill { height: 100%; border-radius: 6px; transition: width .4s ease, background .4s; display: flex; align-items: center; padding-left: 8px; font-size: .75rem; font-weight: 600; }
+
+        /* Confidence colours */
+        .conf-low { background: var(--green); }
+        .conf-med { background: var(--yellow); color: #000; }
+        .conf-high { background: var(--red); }
+
+        /* Fused confidence big number */
+        #fused-value { font-size: 3.5rem; font-weight: 800; text-align: center; margin: 10px 0; }
+        #threat-badge { text-align: center; font-size: 1rem; font-weight: 600; padding: 4px 18px; border-radius: 20px; display: inline-block; }
+
+        /* Chart */
+        #chart-container { position: relative; height: 220px; }
+
+        /* Weights form */
+        .weight-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .weight-row label { width: 60px; font-size: .85rem; }
+        .weight-row input[type=range] { flex: 1; }
+        .weight-row .val { width: 45px; text-align: right; font-size: .85rem; font-variant-numeric: tabular-nums; }
+        #save-weights {
+            margin-top: 8px;
+            padding: 8px 24px;
+            background: var(--blue);
+            border: none;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: .9rem;
+        }
+        #save-weights:hover { opacity: .85; }
+        .weight-status { margin-top: 6px; font-size: .8rem; }
+
+        /* Threshold */
+        .threshold-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+        .threshold-row input { flex: 1; }
+
+        /* Metadata */
+        .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        .meta-item { background: var(--bg); border-radius: 8px; padding: 10px; font-size: .8rem; }
+        .meta-item .lbl { color: var(--muted); margin-bottom: 4px; }
+        .meta-item .val { font-weight: 600; }
+
+        /* Log */
+        #log { max-height: 220px; overflow-y: auto; font-family: 'Cascadia Code', monospace; font-size: .78rem; line-height: 1.6; }
+        #log div { padding: 2px 0; border-bottom: 1px solid var(--border); }
+        .log-detected { color: var(--red); }
+        .log-clear { color: var(--green); }
+
+        .full-width { grid-column: 1 / -1; }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>🛡️ Drone Detection System</h1>
+        <span id="connection-status" class="disconnected">DISCONNECTED</span>
+    </header>
+
+    <div id="alert-banner" class="alert-clear">AREA CLEAR — NO DRONES DETECTED</div>
+
+    <div class="grid">
+        <!-- Fused result -->
+        <div class="card">
+            <h2>Fused Confidence</h2>
+            <div id="fused-value" style="color:var(--green)">0.000</div>
+            <div style="text-align:center"><span id="threat-badge" style="background:rgba(0,230,118,.15);color:var(--green)">NONE</span></div>
+        </div>
+
+        <!-- Individual sensors -->
+        <div class="card">
+            <h2>Sensor Readings</h2>
+            <div class="sensor-bar">
+                <label><span>🎤 Audio</span><span id="audio-val">0.000</span></label>
+                <div class="bar-bg"><div class="bar-fill conf-low" id="audio-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sensor-bar">
+                <label><span>📷 Video</span><span id="video-val">0.000</span></label>
+                <div class="bar-bg"><div class="bar-fill conf-low" id="video-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sensor-bar">
+                <label><span>📡 Radar</span><span id="radar-val">0.000</span></label>
+                <div class="bar-bg"><div class="bar-fill conf-low" id="radar-bar" style="width:0%"></div></div>
+            </div>
+            <div class="sensor-bar">
+                <label><span>📻 RF</span><span id="rf-val">0.000</span></label>
+                <div class="bar-bg"><div class="bar-fill conf-low" id="rf-bar" style="width:0%"></div></div>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="card full-width">
+            <h2>Confidence History</h2>
+            <div id="chart-container">
+                <canvas id="historyChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Sensor metadata -->
+        <div class="card">
+            <h2>Sensor Details</h2>
+            <div class="meta-grid" id="metadata-grid">
+                <div class="meta-item"><div class="lbl">Audio SNR</div><div class="val" id="m-audio-snr">—</div></div>
+                <div class="meta-item"><div class="lbl">Audio Freq</div><div class="val" id="m-audio-freq">—</div></div>
+                <div class="meta-item"><div class="lbl">Video Class</div><div class="val" id="m-video-class">—</div></div>
+                <div class="meta-item"><div class="lbl">Video BBox</div><div class="val" id="m-video-bbox">—</div></div>
+                <div class="meta-item"><div class="lbl">Radar Range</div><div class="val" id="m-radar-range">—</div></div>
+                <div class="meta-item"><div class="lbl">Radar Alt</div><div class="val" id="m-radar-alt">—</div></div>
+                <div class="meta-item"><div class="lbl">RF Protocol</div><div class="val" id="m-rf-proto">—</div></div>
+                <div class="meta-item"><div class="lbl">RF RSSI</div><div class="val" id="m-rf-rssi">—</div></div>
+            </div>
+        </div>
+
+        <!-- Weights control -->
+        <div class="card">
+            <h2>Fusion Weights</h2>
+            <div class="weight-row"><label>Audio</label><input type="range" min="0" max="100" value="20" id="w-audio"><span class="val" id="wv-audio">0.20</span></div>
+            <div class="weight-row"><label>Video</label><input type="range" min="0" max="100" value="35" id="w-video"><span class="val" id="wv-video">0.35</span></div>
+            <div class="weight-row"><label>Radar</label><input type="range" min="0" max="100" value="30" id="w-radar"><span class="val" id="wv-radar">0.30</span></div>
+            <div class="weight-row"><label>RF</label><input type="range" min="0" max="100" value="15" id="w-rf"><span class="val" id="wv-rf">0.15</span></div>
+            <button id="save-weights">Save Weights</button>
+            <div class="weight-status" id="weight-status"></div>
+
+            <div class="threshold-row">
+                <label>Threshold</label>
+                <input type="range" min="0" max="100" value="55" id="threshold-slider">
+                <span class="val" id="threshold-val">0.55</span>
+            </div>
+        </div>
+
+        <!-- Event log -->
+        <div class="card full-width">
+            <h2>Event Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+<script>
+const socket = io();
+const MAX_POINTS = 60;
+
+// --- Chart ---
+const ctx = document.getElementById('historyChart').getContext('2d');
+const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+        labels: [],
+        datasets: [
+            { label: 'Fused', data: [], borderColor: '#448aff', borderWidth: 2, tension: .3, pointRadius: 0 },
+            { label: 'Audio', data: [], borderColor: '#ab47bc', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'Video', data: [], borderColor: '#26c6da', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'Radar', data: [], borderColor: '#ff9100', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'RF', data: [], borderColor: '#66bb6a', borderWidth: 1, tension: .3, pointRadius: 0 },
+        ]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        animation: { duration: 300 },
+        scales: {
+            x: { display: false },
+            y: { min: 0, max: 1, ticks: { color: '#888' }, grid: { color: '#2a2d3a' } }
+        },
+        plugins: {
+            legend: { labels: { color: '#aaa', boxWidth: 12, font: { size: 11 } } }
+        }
+    }
+});
+
+// --- Connection ---
+socket.on('connect', () => {
+    const el = document.getElementById('connection-status');
+    el.textContent = 'CONNECTED';
+    el.className = 'connected';
+});
+socket.on('disconnect', () => {
+    const el = document.getElementById('connection-status');
+    el.textContent = 'DISCONNECTED';
+    el.className = 'disconnected';
+});
+
+// --- Helpers ---
+function confClass(c) { return c < .4 ? 'conf-low' : c < .65 ? 'conf-med' : 'conf-high'; }
+function confColor(c) { return c < .4 ? 'var(--green)' : c < .65 ? 'var(--yellow)' : 'var(--red)'; }
+function threatStyle(t) {
+    switch(t) {
+        case 'none': return { bg: 'rgba(0,230,118,.15)', color: 'var(--green)' };
+        case 'low': return { bg: 'rgba(255,234,0,.12)', color: 'var(--yellow)' };
+        case 'medium': return { bg: 'rgba(255,145,0,.15)', color: 'var(--orange)' };
+        case 'high': return { bg: 'rgba(255,23,68,.15)', color: 'var(--red)' };
+    }
+}
+function setBar(id, conf) {
+    const bar = document.getElementById(id + '-bar');
+    bar.style.width = (conf * 100) + '%';
+    bar.className = 'bar-fill ' + confClass(conf);
+    document.getElementById(id + '-val').textContent = conf.toFixed(3);
+}
+
+// --- Sensor update ---
+socket.on('sensor_update', (d) => {
+    // Fused
+    const fc = d.fused_confidence;
+    document.getElementById('fused-value').textContent = fc.toFixed(3);
+    document.getElementById('fused-value').style.color = confColor(fc);
+    const ts = threatStyle(d.threat_level);
+    const badge = document.getElementById('threat-badge');
+    badge.textContent = d.threat_level.toUpperCase();
+    badge.style.background = ts.bg;
+    badge.style.color = ts.color;
+
+    // Alert banner
+    const banner = document.getElementById('alert-banner');
+    if (d.drone_detected) {
+        banner.textContent = '⚠️ DRONE DETECTED — THREAT LEVEL: ' + d.threat_level.toUpperCase();
+        banner.className = 'alert-detected';
+    } else {
+        banner.textContent = 'AREA CLEAR — NO DRONES DETECTED';
+        banner.className = 'alert-clear';
+    }
+
+    // Sensor bars
+    const sensors = d.sensors || {};
+    for (const key of ['audio', 'video', 'radar', 'rf']) {
+        const s = sensors[key];
+        if (s) setBar(key, s.confidence);
+    }
+
+    // Metadata
+    if (sensors.audio) {
+        document.getElementById('m-audio-snr').textContent = (sensors.audio.metadata.snr_db ?? '—') + ' dB';
+        document.getElementById('m-audio-freq').textContent = (sensors.audio.metadata.dominant_freq_hz ?? '—') + ' Hz';
+    }
+    if (sensors.video) {
+        document.getElementById('m-video-class').textContent = sensors.video.metadata.detected_class || '—';
+        const bb = sensors.video.metadata.bbox;
+        document.getElementById('m-video-bbox').textContent = bb ? `${bb.x},${bb.y} ${bb.w}x${bb.h}` : '—';
+    }
+    if (sensors.radar) {
+        document.getElementById('m-radar-range').textContent = (sensors.radar.metadata.range_m ?? '—') + ' m';
+        document.getElementById('m-radar-alt').textContent = (sensors.radar.metadata.altitude_m ?? '—') + ' m';
+    }
+    if (sensors.rf) {
+        document.getElementById('m-rf-proto').textContent = sensors.rf.metadata.protocol || '—';
+        document.getElementById('m-rf-rssi').textContent = (sensors.rf.metadata.rssi_dbm ?? '—') + ' dBm';
+    }
+
+    // Chart
+    const now = new Date(d.timestamp * 1000).toLocaleTimeString();
+    chart.data.labels.push(now);
+    chart.data.datasets[0].data.push(fc);
+    chart.data.datasets[1].data.push(sensors.audio?.confidence ?? 0);
+    chart.data.datasets[2].data.push(sensors.video?.confidence ?? 0);
+    chart.data.datasets[3].data.push(sensors.radar?.confidence ?? 0);
+    chart.data.datasets[4].data.push(sensors.rf?.confidence ?? 0);
+    if (chart.data.labels.length > MAX_POINTS) {
+        chart.data.labels.shift();
+        chart.data.datasets.forEach(ds => ds.data.shift());
+    }
+    chart.update();
+
+    // Log
+    const log = document.getElementById('log');
+    const entry = document.createElement('div');
+    entry.className = d.drone_detected ? 'log-detected' : 'log-clear';
+    entry.textContent = `[${now}] fused=${fc.toFixed(3)} threat=${d.threat_level} | `
+        + `audio=${(sensors.audio?.confidence??0).toFixed(2)} `
+        + `video=${(sensors.video?.confidence??0).toFixed(2)} `
+        + `radar=${(sensors.radar?.confidence??0).toFixed(2)} `
+        + `rf=${(sensors.rf?.confidence??0).toFixed(2)}`;
+    log.prepend(entry);
+    while (log.children.length > 100) log.lastChild.remove();
+});
+
+// --- Weights sliders ---
+['audio', 'video', 'radar', 'rf'].forEach(key => {
+    const slider = document.getElementById('w-' + key);
+    const disp = document.getElementById('wv-' + key);
+    slider.addEventListener('input', () => { disp.textContent = (slider.value / 100).toFixed(2); });
+});
+
+document.getElementById('save-weights').addEventListener('click', async () => {
+    const w = {};
+    let total = 0;
+    ['audio', 'video', 'radar', 'rf'].forEach(key => {
+        w[key] = parseInt(document.getElementById('w-' + key).value) / 100;
+        total += w[key];
+    });
+    // Normalise
+    for (const k in w) w[k] = w[k] / total;
+    ['audio', 'video', 'radar', 'rf'].forEach(key => {
+        document.getElementById('w-' + key).value = Math.round(w[key] * 100);
+        document.getElementById('wv-' + key).textContent = w[key].toFixed(2);
+    });
+    const res = await fetch('/api/weights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(w) });
+    const data = await res.json();
+    document.getElementById('weight-status').textContent = data.status === 'ok' ? '✓ Weights updated' : '✗ ' + data.error;
+    setTimeout(() => document.getElementById('weight-status').textContent = '', 3000);
+});
+
+// --- Threshold slider ---
+const thSlider = document.getElementById('threshold-slider');
+const thDisp = document.getElementById('threshold-val');
+thSlider.addEventListener('input', () => { thDisp.textContent = (thSlider.value / 100).toFixed(2); });
+thSlider.addEventListener('change', async () => {
+    const v = parseInt(thSlider.value) / 100;
+    await fetch('/api/threshold', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threshold: v }) });
+});
+</script>
+</body>
+</html>
