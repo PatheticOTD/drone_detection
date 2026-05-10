@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Drone Detection System</title>
+    <title>Система обнаружения дронов</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.5/socket.io.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
     <style>
@@ -94,7 +94,7 @@
 
         /* Weights form */
         .weight-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
-        .weight-row label { width: 60px; font-size: .85rem; }
+        .weight-row label { width: 70px; font-size: .85rem; }
         .weight-row input[type=range] { flex: 1; }
         .weight-row .val { width: 45px; text-align: right; font-size: .85rem; font-variant-numeric: tabular-nums; }
         #save-weights {
@@ -127,88 +127,121 @@
         .log-clear { color: var(--green); }
 
         .full-width { grid-column: 1 / -1; }
+
+        /* Position map */
+        #position-map { display: block; width: 100%; border-radius: 8px; background: var(--bg); }
+        .pos-info { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+        .pos-stat { background: var(--bg); border-radius: 8px; padding: 10px; font-size: .8rem; }
+        .pos-stat .lbl { color: var(--muted); margin-bottom: 4px; }
+        .pos-stat .val { font-weight: 600; font-variant-numeric: tabular-nums; }
+        .sensor-dot-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 10px; font-size: .78rem; }
+        .dot-item { display: flex; align-items: center; gap: 5px; }
+        .dot-swatch { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
     </style>
 </head>
 <body>
     <header>
-        <h1>🛡️ Drone Detection System</h1>
-        <span id="connection-status" class="disconnected">DISCONNECTED</span>
+        <h1>🛡️ Система обнаружения дронов</h1>
+        <span id="connection-status" class="disconnected">ОТКЛЮЧЕНО</span>
     </header>
 
-    <div id="alert-banner" class="alert-clear">AREA CLEAR — NO DRONES DETECTED</div>
+    <div id="alert-banner" class="alert-clear">ЗОНА ЧИСТА — ДРОНЫ НЕ ОБНАРУЖЕНЫ</div>
 
     <div class="grid">
-        <!-- Fused result -->
+        <!-- Сводная достоверность -->
         <div class="card">
-            <h2>Fused Confidence</h2>
+            <h2>Сводная достоверность</h2>
             <div id="fused-value" style="color:var(--green)">0.000</div>
-            <div style="text-align:center"><span id="threat-badge" style="background:rgba(0,230,118,.15);color:var(--green)">NONE</span></div>
+            <div style="text-align:center"><span id="threat-badge" style="background:rgba(0,230,118,.15);color:var(--green)">НЕТ</span></div>
         </div>
 
-        <!-- Individual sensors -->
+        <!-- Показания сенсоров -->
         <div class="card">
-            <h2>Sensor Readings</h2>
+            <h2>Показания сенсоров</h2>
             <div class="sensor-bar">
-                <label><span>🎤 Audio</span><span id="audio-val">0.000</span></label>
+                <label><span>🎤 Аудио</span><span id="audio-val">0.000</span></label>
                 <div class="bar-bg"><div class="bar-fill conf-low" id="audio-bar" style="width:0%"></div></div>
             </div>
             <div class="sensor-bar">
-                <label><span>📷 Video</span><span id="video-val">0.000</span></label>
+                <label><span>📷 Видео</span><span id="video-val">0.000</span></label>
                 <div class="bar-bg"><div class="bar-fill conf-low" id="video-bar" style="width:0%"></div></div>
             </div>
             <div class="sensor-bar">
-                <label><span>📡 Radar</span><span id="radar-val">0.000</span></label>
+                <label><span>📡 Радар</span><span id="radar-val">0.000</span></label>
                 <div class="bar-bg"><div class="bar-fill conf-low" id="radar-bar" style="width:0%"></div></div>
             </div>
             <div class="sensor-bar">
-                <label><span>📻 RF</span><span id="rf-val">0.000</span></label>
+                <label><span>📻 РЧ</span><span id="rf-val">0.000</span></label>
                 <div class="bar-bg"><div class="bar-fill conf-low" id="rf-bar" style="width:0%"></div></div>
             </div>
         </div>
 
-        <!-- Chart -->
+        <!-- График -->
         <div class="card full-width">
-            <h2>Confidence History</h2>
+            <h2>История достоверности</h2>
             <div id="chart-container">
                 <canvas id="historyChart"></canvas>
             </div>
         </div>
 
-        <!-- Sensor metadata -->
-        <div class="card">
-            <h2>Sensor Details</h2>
-            <div class="meta-grid" id="metadata-grid">
-                <div class="meta-item"><div class="lbl">Audio SNR</div><div class="val" id="m-audio-snr">—</div></div>
-                <div class="meta-item"><div class="lbl">Audio Freq</div><div class="val" id="m-audio-freq">—</div></div>
-                <div class="meta-item"><div class="lbl">Video Class</div><div class="val" id="m-video-class">—</div></div>
-                <div class="meta-item"><div class="lbl">Video BBox</div><div class="val" id="m-video-bbox">—</div></div>
-                <div class="meta-item"><div class="lbl">Radar Range</div><div class="val" id="m-radar-range">—</div></div>
-                <div class="meta-item"><div class="lbl">Radar Alt</div><div class="val" id="m-radar-alt">—</div></div>
-                <div class="meta-item"><div class="lbl">RF Protocol</div><div class="val" id="m-rf-proto">—</div></div>
-                <div class="meta-item"><div class="lbl">RF RSSI</div><div class="val" id="m-rf-rssi">—</div></div>
+        <!-- Карта положения -->
+        <div class="card full-width">
+            <h2>Положение дрона (вид сверху)</h2>
+            <canvas id="position-map" height="320"></canvas>
+            <div class="pos-info">
+                <div class="pos-stat"><div class="lbl">X (Восток)</div><div class="val" id="pos-x">—</div></div>
+                <div class="pos-stat"><div class="lbl">Y (Север)</div><div class="val" id="pos-y">—</div></div>
+                <div class="pos-stat"><div class="lbl">Высота</div><div class="val" id="pos-z">—</div></div>
+                <div class="pos-stat"><div class="lbl">Погрешность</div><div class="val" id="pos-unc">—</div></div>
+                <div class="pos-stat"><div class="lbl">Азимут</div><div class="val" id="pos-bearing">—</div></div>
+                <div class="pos-stat"><div class="lbl">Дальность</div><div class="val" id="pos-range">—</div></div>
+                <div class="pos-stat"><div class="lbl">Метод</div><div class="val" id="pos-method">—</div></div>
+                <div class="pos-stat"><div class="lbl">Статус</div><div class="val" id="pos-status" style="color:var(--muted)">Нет фиксации</div></div>
+            </div>
+            <div class="sensor-dot-legend">
+                <div class="dot-item"><span class="dot-swatch" style="background:#ff9100"></span>Радар</div>
+                <div class="dot-item"><span class="dot-swatch" style="background:#26c6da"></span>Видео</div>
+                <div class="dot-item"><span class="dot-swatch" style="background:#66bb6a"></span>РЧ (только дальность)</div>
+                <div class="dot-item"><span class="dot-swatch" style="background:#ab47bc"></span>Аудио (только дальность)</div>
+                <div class="dot-item"><span class="dot-swatch" style="background:#fff; border:2px solid #448aff"></span>Слияние</div>
             </div>
         </div>
 
-        <!-- Weights control -->
+        <!-- Детали сенсоров -->
         <div class="card">
-            <h2>Fusion Weights</h2>
-            <div class="weight-row"><label>Audio</label><input type="range" min="0" max="100" value="20" id="w-audio"><span class="val" id="wv-audio">0.20</span></div>
-            <div class="weight-row"><label>Video</label><input type="range" min="0" max="100" value="35" id="w-video"><span class="val" id="wv-video">0.35</span></div>
-            <div class="weight-row"><label>Radar</label><input type="range" min="0" max="100" value="30" id="w-radar"><span class="val" id="wv-radar">0.30</span></div>
-            <div class="weight-row"><label>RF</label><input type="range" min="0" max="100" value="15" id="w-rf"><span class="val" id="wv-rf">0.15</span></div>
-            <button id="save-weights">Save Weights</button>
+            <h2>Детали сенсоров</h2>
+            <div class="meta-grid" id="metadata-grid">
+                <div class="meta-item"><div class="lbl">Аудио ОСШ</div><div class="val" id="m-audio-snr">—</div></div>
+                <div class="meta-item"><div class="lbl">Аудио частота</div><div class="val" id="m-audio-freq">—</div></div>
+                <div class="meta-item"><div class="lbl">Класс (видео)</div><div class="val" id="m-video-class">—</div></div>
+                <div class="meta-item"><div class="lbl">Рамка (видео)</div><div class="val" id="m-video-bbox">—</div></div>
+                <div class="meta-item"><div class="lbl">Дальность радара</div><div class="val" id="m-radar-range">—</div></div>
+                <div class="meta-item"><div class="lbl">Высота (радар)</div><div class="val" id="m-radar-alt">—</div></div>
+                <div class="meta-item"><div class="lbl">Протокол РЧ</div><div class="val" id="m-rf-proto">—</div></div>
+                <div class="meta-item"><div class="lbl">РЧ RSSI</div><div class="val" id="m-rf-rssi">—</div></div>
+            </div>
+        </div>
+
+        <!-- Веса слияния -->
+        <div class="card">
+            <h2>Веса слияния</h2>
+            <div class="weight-row"><label>Аудио</label><input type="range" min="0" max="100" value="20" id="w-audio"><span class="val" id="wv-audio">0.20</span></div>
+            <div class="weight-row"><label>Видео</label><input type="range" min="0" max="100" value="35" id="w-video"><span class="val" id="wv-video">0.35</span></div>
+            <div class="weight-row"><label>Радар</label><input type="range" min="0" max="100" value="30" id="w-radar"><span class="val" id="wv-radar">0.30</span></div>
+            <div class="weight-row"><label>РЧ</label><input type="range" min="0" max="100" value="15" id="w-rf"><span class="val" id="wv-rf">0.15</span></div>
+            <button id="save-weights">Сохранить веса</button>
             <div class="weight-status" id="weight-status"></div>
 
             <div class="threshold-row">
-                <label>Threshold</label>
+                <label>Порог</label>
                 <input type="range" min="0" max="100" value="55" id="threshold-slider">
                 <span class="val" id="threshold-val">0.55</span>
             </div>
         </div>
 
-        <!-- Event log -->
+        <!-- Журнал событий -->
         <div class="card full-width">
-            <h2>Event Log</h2>
+            <h2>Журнал событий</h2>
             <div id="log"></div>
         </div>
     </div>
@@ -217,18 +250,22 @@
 const socket = io();
 const MAX_POINTS = 60;
 
-// --- Chart ---
+// --- Уровни угрозы ---
+const THREAT_LABELS = { none: 'НЕТ', low: 'НИЗКИЙ', medium: 'СРЕДНИЙ', high: 'ВЫСОКИЙ' };
+function threatLabel(t) { return THREAT_LABELS[t] || t.toUpperCase(); }
+
+// --- График ---
 const ctx = document.getElementById('historyChart').getContext('2d');
 const chart = new Chart(ctx, {
     type: 'line',
     data: {
         labels: [],
         datasets: [
-            { label: 'Fused', data: [], borderColor: '#448aff', borderWidth: 2, tension: .3, pointRadius: 0 },
-            { label: 'Audio', data: [], borderColor: '#ab47bc', borderWidth: 1, tension: .3, pointRadius: 0 },
-            { label: 'Video', data: [], borderColor: '#26c6da', borderWidth: 1, tension: .3, pointRadius: 0 },
-            { label: 'Radar', data: [], borderColor: '#ff9100', borderWidth: 1, tension: .3, pointRadius: 0 },
-            { label: 'RF', data: [], borderColor: '#66bb6a', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'Слияние', data: [], borderColor: '#448aff', borderWidth: 2, tension: .3, pointRadius: 0 },
+            { label: 'Аудио',   data: [], borderColor: '#ab47bc', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'Видео',   data: [], borderColor: '#26c6da', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'Радар',   data: [], borderColor: '#ff9100', borderWidth: 1, tension: .3, pointRadius: 0 },
+            { label: 'РЧ',      data: [], borderColor: '#66bb6a', borderWidth: 1, tension: .3, pointRadius: 0 },
         ]
     },
     options: {
@@ -244,27 +281,27 @@ const chart = new Chart(ctx, {
     }
 });
 
-// --- Connection ---
+// --- Подключение ---
 socket.on('connect', () => {
     const el = document.getElementById('connection-status');
-    el.textContent = 'CONNECTED';
+    el.textContent = 'ПОДКЛЮЧЕНО';
     el.className = 'connected';
 });
 socket.on('disconnect', () => {
     const el = document.getElementById('connection-status');
-    el.textContent = 'DISCONNECTED';
+    el.textContent = 'ОТКЛЮЧЕНО';
     el.className = 'disconnected';
 });
 
-// --- Helpers ---
+// --- Вспомогательные функции ---
 function confClass(c) { return c < .4 ? 'conf-low' : c < .65 ? 'conf-med' : 'conf-high'; }
 function confColor(c) { return c < .4 ? 'var(--green)' : c < .65 ? 'var(--yellow)' : 'var(--red)'; }
 function threatStyle(t) {
     switch(t) {
-        case 'none': return { bg: 'rgba(0,230,118,.15)', color: 'var(--green)' };
-        case 'low': return { bg: 'rgba(255,234,0,.12)', color: 'var(--yellow)' };
-        case 'medium': return { bg: 'rgba(255,145,0,.15)', color: 'var(--orange)' };
-        case 'high': return { bg: 'rgba(255,23,68,.15)', color: 'var(--red)' };
+        case 'none':   return { bg: 'rgba(0,230,118,.15)',  color: 'var(--green)'  };
+        case 'low':    return { bg: 'rgba(255,234,0,.12)',  color: 'var(--yellow)' };
+        case 'medium': return { bg: 'rgba(255,145,0,.15)',  color: 'var(--orange)' };
+        case 'high':   return { bg: 'rgba(255,23,68,.15)',  color: 'var(--red)'    };
     }
 }
 function setBar(id, conf) {
@@ -274,56 +311,64 @@ function setBar(id, conf) {
     document.getElementById(id + '-val').textContent = conf.toFixed(3);
 }
 
-// --- Sensor update ---
+// --- Обновление сенсоров ---
 socket.on('sensor_update', (d) => {
-    // Fused
+    // Сводная
     const fc = d.fused_confidence;
     document.getElementById('fused-value').textContent = fc.toFixed(3);
     document.getElementById('fused-value').style.color = confColor(fc);
     const ts = threatStyle(d.threat_level);
     const badge = document.getElementById('threat-badge');
-    badge.textContent = d.threat_level.toUpperCase();
+    badge.textContent = threatLabel(d.threat_level);
     badge.style.background = ts.bg;
     badge.style.color = ts.color;
 
-    // Alert banner
+    // Баннер тревоги
     const banner = document.getElementById('alert-banner');
     if (d.drone_detected) {
-        banner.textContent = '⚠️ DRONE DETECTED — THREAT LEVEL: ' + d.threat_level.toUpperCase();
+        banner.textContent = '⚠️ ДРОН ОБНАРУЖЕН — УРОВЕНЬ УГРОЗЫ: ' + threatLabel(d.threat_level);
         banner.className = 'alert-detected';
     } else {
-        banner.textContent = 'AREA CLEAR — NO DRONES DETECTED';
+        banner.textContent = 'ЗОНА ЧИСТА — ДРОНЫ НЕ ОБНАРУЖЕНЫ';
         banner.className = 'alert-clear';
     }
 
-    // Sensor bars
+    // Полосы сенсоров
     const sensors = d.sensors || {};
     for (const key of ['audio', 'video', 'radar', 'rf']) {
         const s = sensors[key];
         if (s) setBar(key, s.confidence);
     }
 
-    // Metadata
+    // Метаданные
     if (sensors.audio) {
-        document.getElementById('m-audio-snr').textContent = (sensors.audio.metadata.snr_db ?? '—') + ' dB';
-        document.getElementById('m-audio-freq').textContent = (sensors.audio.metadata.dominant_freq_hz ?? '—') + ' Hz';
+        document.getElementById('m-audio-snr').textContent = (sensors.audio.metadata.snr_db ?? '—') + ' дБ';
+        document.getElementById('m-audio-freq').textContent = (sensors.audio.metadata.dominant_freq_hz ?? '—') + ' Гц';
     }
     if (sensors.video) {
         document.getElementById('m-video-class').textContent = sensors.video.metadata.detected_class || '—';
         const bb = sensors.video.metadata.bbox;
-        document.getElementById('m-video-bbox').textContent = bb ? `${bb.x},${bb.y} ${bb.w}x${bb.h}` : '—';
+        document.getElementById('m-video-bbox').textContent = bb ? `${bb.x},${bb.y} ${bb.w}×${bb.h}` : '—';
     }
     if (sensors.radar) {
-        document.getElementById('m-radar-range').textContent = (sensors.radar.metadata.range_m ?? '—') + ' m';
-        document.getElementById('m-radar-alt').textContent = (sensors.radar.metadata.altitude_m ?? '—') + ' m';
+        document.getElementById('m-radar-range').textContent = (sensors.radar.metadata.range_m ?? '—') + ' м';
+        document.getElementById('m-radar-alt').textContent = (sensors.radar.metadata.altitude_m ?? '—') + ' м';
     }
     if (sensors.rf) {
         document.getElementById('m-rf-proto').textContent = sensors.rf.metadata.protocol || '—';
-        document.getElementById('m-rf-rssi').textContent = (sensors.rf.metadata.rssi_dbm ?? '—') + ' dBm';
+        document.getElementById('m-rf-rssi').textContent = (sensors.rf.metadata.rssi_dbm ?? '—') + ' дБм';
     }
 
-    // Chart
-    const now = new Date(d.timestamp * 1000).toLocaleTimeString();
+    // Карта положения
+    const sensorLocs = {};
+    for (const [key, s] of Object.entries(sensors)) {
+        sensorLocs[key] = s.location || null;
+    }
+    updatePositionPanel(d.location || null);
+    drawPositionMap(d.location || null, sensorLocs);
+
+    // График
+    const now = new Date(d.timestamp * 1000).toLocaleTimeString('ru-RU');
     chart.data.labels.push(now);
     chart.data.datasets[0].data.push(fc);
     chart.data.datasets[1].data.push(sensors.audio?.confidence ?? 0);
@@ -336,20 +381,155 @@ socket.on('sensor_update', (d) => {
     }
     chart.update();
 
-    // Log
+    // Журнал
     const log = document.getElementById('log');
     const entry = document.createElement('div');
     entry.className = d.drone_detected ? 'log-detected' : 'log-clear';
-    entry.textContent = `[${now}] fused=${fc.toFixed(3)} threat=${d.threat_level} | `
-        + `audio=${(sensors.audio?.confidence??0).toFixed(2)} `
-        + `video=${(sensors.video?.confidence??0).toFixed(2)} `
-        + `radar=${(sensors.radar?.confidence??0).toFixed(2)} `
-        + `rf=${(sensors.rf?.confidence??0).toFixed(2)}`;
+    entry.textContent = `[${now}] слияние=${fc.toFixed(3)} угроза=${threatLabel(d.threat_level)} | `
+        + `аудио=${(sensors.audio?.confidence??0).toFixed(2)} `
+        + `видео=${(sensors.video?.confidence??0).toFixed(2)} `
+        + `радар=${(sensors.radar?.confidence??0).toFixed(2)} `
+        + `рч=${(sensors.rf?.confidence??0).toFixed(2)}`;
     log.prepend(entry);
     while (log.children.length > 100) log.lastChild.remove();
 });
 
-// --- Weights sliders ---
+// --- Карта положения ---
+const posCanvas = document.getElementById('position-map');
+const posCtx = posCanvas.getContext('2d');
+
+const SENSOR_COLORS = { radar: '#ff9100', video: '#26c6da', rf: '#66bb6a', audio: '#ab47bc' };
+
+function drawPositionMap(fusedLoc, sensorLocs) {
+    const W = posCanvas.offsetWidth;
+    const H = 320;
+    posCanvas.width  = W;
+    posCanvas.height = H;
+    const ctx = posCtx;
+
+    ctx.clearRect(0, 0, W, H);
+
+    let maxRange = 500;
+    if (fusedLoc) maxRange = Math.max(maxRange, fusedLoc.range_m + fusedLoc.uncertainty_m + 50);
+    for (const loc of Object.values(sensorLocs)) {
+        if (loc && loc.range_m) maxRange = Math.max(maxRange, loc.range_m + (loc.uncertainty_m || 0) + 50);
+    }
+
+    const margin = 40;
+    const scale = Math.min((W / 2 - margin), (H / 2 - margin)) / maxRange;
+    const cx = W / 2, cy = H / 2;
+
+    const toCanvas = (x, y) => [cx + x * scale, cy - y * scale];
+
+    // Сетка
+    ctx.strokeStyle = '#2a2d3a';
+    ctx.lineWidth = 1;
+    const gridStep = Math.pow(10, Math.floor(Math.log10(maxRange / 3)));
+    for (let r = gridStep; r <= maxRange; r += gridStep) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r * scale, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.fillStyle = '#444';
+        ctx.font = '10px monospace';
+        ctx.fillText((r >= 1000 ? (r / 1000).toFixed(1) + 'км' : r + 'м'), cx + r * scale + 3, cy - 3);
+    }
+
+    // Оси
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(cx, margin); ctx.lineTo(cx, H - margin); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(margin, cy); ctx.lineTo(W - margin, cy); ctx.stroke();
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#555';
+    ctx.font = '11px sans-serif';
+    ctx.fillText('С', cx + 4, margin + 12);
+    ctx.fillText('В', W - margin - 4, cy - 4);
+
+    // Оценки с дальностью без азимута (РЧ, аудио) — дуга
+    for (const [sensor, loc] of Object.entries(sensorLocs)) {
+        if (!loc || loc.bearing_deg !== null && loc.bearing_deg !== undefined) continue;
+        if (!loc.range_m) continue;
+        const [sx, sy] = toCanvas(loc.x || 0, loc.y || 0);
+        const r = loc.range_m * scale;
+        ctx.strokeStyle = SENSOR_COLORS[sensor] + '66';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        ctx.arc(sx, sy, r, 0, 2 * Math.PI);
+        ctx.stroke();
+        ctx.setLineDash([]);
+    }
+
+    // Направленные оценки (радар, видео) — точка + круг погрешности
+    for (const [sensor, loc] of Object.entries(sensorLocs)) {
+        if (!loc || loc.bearing_deg === null || loc.bearing_deg === undefined) continue;
+        const [px, py] = toCanvas(loc.x, loc.y);
+        const unc = loc.uncertainty_m * scale;
+        const color = SENSOR_COLORS[sensor];
+        ctx.strokeStyle = color + '55';
+        ctx.fillStyle   = color + '18';
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(px, py, Math.max(3, unc), 0, 2 * Math.PI);
+        ctx.fill(); ctx.stroke();
+        ctx.fillStyle = color;
+        ctx.beginPath(); ctx.arc(px, py, 5, 0, 2 * Math.PI); ctx.fill();
+        ctx.fillStyle = color;
+        ctx.font = '11px sans-serif';
+        ctx.fillText(sensor, px + 7, py - 4);
+    }
+
+    // Слитое положение
+    if (fusedLoc) {
+        const [fx, fy] = toCanvas(fusedLoc.x, fusedLoc.y);
+        const unc = fusedLoc.uncertainty_m * scale;
+        ctx.strokeStyle = '#448aff88';
+        ctx.fillStyle   = '#448aff18';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(fx, fy, Math.max(4, unc), 0, 2 * Math.PI);
+        ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.5;
+        const r = 8;
+        ctx.beginPath(); ctx.moveTo(fx - r, fy); ctx.lineTo(fx + r, fy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(fx, fy - r); ctx.lineTo(fx, fy + r); ctx.stroke();
+        ctx.strokeStyle = '#448aff';
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(fx, fy, 6, 0, 2 * Math.PI); ctx.stroke();
+    }
+
+    // Маркер кластера сенсоров
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = '#888';
+    ctx.font = '10px sans-serif';
+    ctx.fillText('сенсоры', cx + 6, cy + 12);
+}
+
+function updatePositionPanel(loc) {
+    if (!loc) {
+        ['pos-x','pos-y','pos-z','pos-unc','pos-bearing','pos-range','pos-method'].forEach(id => {
+            document.getElementById(id).textContent = '—';
+        });
+        const st = document.getElementById('pos-status');
+        st.textContent = 'Нет фиксации';
+        st.style.color = 'var(--muted)';
+        return;
+    }
+    document.getElementById('pos-x').textContent       = loc.x.toFixed(1) + ' м';
+    document.getElementById('pos-y').textContent       = loc.y.toFixed(1) + ' м';
+    document.getElementById('pos-z').textContent       = loc.z.toFixed(1) + ' м';
+    document.getElementById('pos-unc').textContent     = '±' + loc.uncertainty_m.toFixed(1) + ' м';
+    document.getElementById('pos-bearing').textContent = (loc.bearing_deg !== null ? loc.bearing_deg.toFixed(1) + '°' : '—');
+    document.getElementById('pos-range').textContent   = (loc.range_m !== null ? loc.range_m.toFixed(0) + ' м' : '—');
+    document.getElementById('pos-method').textContent  = loc.method;
+    const st = document.getElementById('pos-status');
+    st.textContent = 'Есть фиксация';
+    st.style.color = 'var(--green)';
+}
+
+// --- Слайдеры весов ---
 ['audio', 'video', 'radar', 'rf'].forEach(key => {
     const slider = document.getElementById('w-' + key);
     const disp = document.getElementById('wv-' + key);
@@ -363,7 +543,6 @@ document.getElementById('save-weights').addEventListener('click', async () => {
         w[key] = parseInt(document.getElementById('w-' + key).value) / 100;
         total += w[key];
     });
-    // Normalise
     for (const k in w) w[k] = w[k] / total;
     ['audio', 'video', 'radar', 'rf'].forEach(key => {
         document.getElementById('w-' + key).value = Math.round(w[key] * 100);
@@ -371,11 +550,11 @@ document.getElementById('save-weights').addEventListener('click', async () => {
     });
     const res = await fetch('/api/weights', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(w) });
     const data = await res.json();
-    document.getElementById('weight-status').textContent = data.status === 'ok' ? '✓ Weights updated' : '✗ ' + data.error;
+    document.getElementById('weight-status').textContent = data.status === 'ok' ? '✓ Веса обновлены' : '✗ ' + data.error;
     setTimeout(() => document.getElementById('weight-status').textContent = '', 3000);
 });
 
-// --- Threshold slider ---
+// --- Слайдер порога ---
 const thSlider = document.getElementById('threshold-slider');
 const thDisp = document.getElementById('threshold-val');
 thSlider.addEventListener('input', () => { thDisp.textContent = (thSlider.value / 100).toFixed(2); });

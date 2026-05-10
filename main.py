@@ -1,12 +1,14 @@
 """Drone Detection System — main entry point.
 
-Starts mock sensors, fusion engine and the web dashboard.
+Starts sensors (NN-backed when weights are available, simulated otherwise),
+fusion engine, and the web dashboard.
 """
 
 import sys
-import time
 import threading
 import logging
+
+import torch
 
 from sensors.audio_sensor import AudioSensor
 from sensors.video_sensor import VideoSensor
@@ -22,6 +24,65 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger("drone_detection")
+
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+
+
+def _try_load(loader_fn, *args, **kwargs):
+    """Call loader_fn(*args) and return None on any error (graceful fallback)."""
+    try:
+        return loader_fn(*args, **kwargs)
+    except Exception as exc:
+        log.warning("Backend unavailable — falling back to simulation: %s", exc)
+        return None
+
+
+def _build_sensors() -> dict:
+    from models.loader import (
+        load_radar_backend,
+        load_audio_backend,
+        load_rf_backend,
+        load_video_backend,
+    )
+
+    log.info("Loading NN backends (device=%s)…", DEVICE)
+
+    radar_backend = _try_load(
+        load_radar_backend,
+        "weights/radar_resnet_best.pt",
+        "data/Real Doppler RAD-DAR database",
+        DEVICE,
+    )
+    audio_backend = _try_load(
+        load_audio_backend,
+        "weights/audio_resnet_best.pt",
+        "data/DroneAudioDataset/Binary_Drone_Audio",
+        DEVICE,
+    )
+    rf_backend = _try_load(
+        load_rf_backend,
+        "weights/rf-mlp_best.pt",
+        "data/Noisy Drone RF Signal Classification/dataset.pt",
+        DEVICE,
+    )
+    video_backend = _try_load(
+        load_video_backend,
+        "weights/yolov8n.pt",
+        "data/Airborne-Object-Detection-4-AOD4.yolov8/train/images",
+        DEVICE,
+    )
+
+    for name, backend in [("radar", radar_backend), ("audio", audio_backend),
+                           ("rf", rf_backend), ("video", video_backend)]:
+        mode = "nn" if backend is not None else "simulation"
+        log.info("  %-6s → %s", name, mode)
+
+    return {
+        "audio": AudioSensor(backend=audio_backend),
+        "video": VideoSensor(backend=video_backend),
+        "radar": RadarSensor(backend=radar_backend),
+        "rf":    RFSensor(backend=rf_backend),
+    }
 
 
 def sensor_loop(engine: FusionEngine, sensors: dict, stop_event: threading.Event) -> None:
@@ -52,20 +113,12 @@ def sensor_loop(engine: FusionEngine, sensors: dict, stop_event: threading.Event
 
 def main() -> None:
     log.info("=== Drone Detection System ===")
-    log.info("Initialising mock sensors…")
 
-    sensors = {
-        "audio": AudioSensor(),
-        "video": VideoSensor(),
-        "radar": RadarSensor(),
-        "rf": RFSensor(),
-    }
-
+    sensors = _build_sensors()
     engine = FusionEngine()
     set_fusion_engine(engine)
 
     stop_event = threading.Event()
-
     sensor_thread = threading.Thread(target=sensor_loop, args=(engine, sensors, stop_event), daemon=True)
     sensor_thread.start()
 

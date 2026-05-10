@@ -1,0 +1,13 @@
+train: ../train/images
+val: ../valid/images
+test: ../test/images
+
+nc: 4
+names: ['airplane', 'bird', 'drone', 'helicopter']
+
+roboflow:
+  workspace: theyfearmes-workspace
+  project: theyfearmes-workspace
+  version: dataset
+  license: Private
+  url: https://app.roboflow.com/theyfearmes-workspace/theyfearmes-workspace/dataset
