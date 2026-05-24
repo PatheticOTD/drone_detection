@@ -14,6 +14,7 @@ from sensors.audio_sensor import AudioSensor
 from sensors.video_sensor import VideoSensor
 from sensors.radar_sensor import RadarSensor
 from sensors.rf_sensor import RFSensor
+from sensors.ground_truth import SimulationGroundTruth
 from fusion.engine import FusionEngine
 from dashboard.app import set_fusion_engine, broadcast_update, run_dashboard
 from config import SENSOR_POLL_INTERVAL, DASHBOARD_HOST, DASHBOARD_PORT
@@ -37,7 +38,7 @@ def _try_load(loader_fn, *args, **kwargs):
         return None
 
 
-def _build_sensors() -> dict:
+def _build_sensors(ground_truth: SimulationGroundTruth) -> dict:
     from models.loader import (
         load_radar_backend,
         load_audio_backend,
@@ -78,10 +79,10 @@ def _build_sensors() -> dict:
         log.info("  %-6s → %s", name, mode)
 
     return {
-        "audio": AudioSensor(backend=audio_backend),
+        "audio": AudioSensor(backend=audio_backend, ground_truth=ground_truth),
         "video": VideoSensor(backend=video_backend),
         "radar": RadarSensor(backend=radar_backend),
-        "rf":    RFSensor(backend=rf_backend),
+        "rf":    RFSensor(backend=rf_backend, ground_truth=ground_truth),
     }
 
 
@@ -114,7 +115,8 @@ def sensor_loop(engine: FusionEngine, sensors: dict, stop_event: threading.Event
 def main() -> None:
     log.info("=== Drone Detection System ===")
 
-    sensors = _build_sensors()
+    ground_truth = SimulationGroundTruth()
+    sensors = _build_sensors(ground_truth)
     engine = FusionEngine()
     set_fusion_engine(engine)
 

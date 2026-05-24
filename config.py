@@ -28,12 +28,40 @@ SIMULATION_NOISE_LEVEL = 0.15                 # noise added to sensor readings
 
 # Sensor positions in local ENU frame (metres).
 # Origin is the centre of the sensor cluster; x=East, y=North, z=Up.
+# Used by single-node sensors (radar, video) and as the fallback centre
+# for the audio / RF arrays.
 SENSOR_POSITIONS = {
     "radar": {"x":  0.0, "y":  0.0, "z": 2.0},
     "video": {"x":  5.0, "y":  0.0, "z": 3.0},
     "audio": {"x": -5.0, "y":  0.0, "z": 1.0},
     "rf":    {"x":  0.0, "y":  5.0, "z": 2.0},
 }
+
+# ---------------------------------------------------------------------------
+# Multi-node sensor arrays
+# ---------------------------------------------------------------------------
+# Audio microphone array — 3+ spatially-separated mics enable trilateration
+# of the acoustic source (azimuth + horizontal range).  Coplanar mics cannot
+# recover the source altitude; the elevation column in the result is the
+# array altitude, with large vertical uncertainty.
+AUDIO_ARRAY_POSITIONS = [
+    {"node_id": "audio_0", "x":  -60.0, "y":   0.0, "z": 1.5},
+    {"node_id": "audio_1", "x":   60.0, "y":   0.0, "z": 1.5},
+    {"node_id": "audio_2", "x":    0.0, "y":  60.0, "z": 1.5},
+    {"node_id": "audio_3", "x":    0.0, "y": -60.0, "z": 1.5},
+]
+
+# RF receiver array — 3+ synchronised RX nodes enable RSSI-trilateration.
+# (Real systems use TDOA between GPS-disciplined RX; here we use RSSI
+# range estimates plus least-squares localisation, which is the simpler
+# but lower-accuracy variant.)  Nodes are kept coplanar — recovering Z
+# from noisy RSSI is unstable and would just add error.
+RF_ARRAY_POSITIONS = [
+    {"node_id": "rf_0", "x": -100.0, "y":  -60.0, "z": 3.0},
+    {"node_id": "rf_1", "x":  100.0, "y":  -60.0, "z": 3.0},
+    {"node_id": "rf_2", "x":    0.0, "y":  110.0, "z": 3.0},
+    {"node_id": "rf_3", "x":    0.0, "y":    0.0, "z": 3.0},
+]
 
 # Camera parameters for video-based location estimation
 CAMERA_CONFIG = {

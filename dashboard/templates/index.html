@@ -129,7 +129,48 @@
         .full-width { grid-column: 1 / -1; }
 
         /* Position map */
-        #position-map { display: block; width: 100%; border-radius: 8px; background: var(--bg); }
+        .map-wrap { position: relative; }
+        #position-map { display: block; width: 100%; border-radius: 8px; background: var(--bg); cursor: crosshair; }
+        .map-controls {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            background: rgba(15,17,23,.85);
+            padding: 6px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .map-controls button {
+            width: 32px;
+            height: 32px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            color: var(--text);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+        }
+        .map-controls button:hover { background: var(--border); }
+        .map-scale {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(15,17,23,.85);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            font-size: .78rem;
+            font-variant-numeric: tabular-nums;
+            color: var(--muted);
+        }
         .pos-info { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
         .pos-stat { background: var(--bg); border-radius: 8px; padding: 10px; font-size: .8rem; }
         .pos-stat .lbl { color: var(--muted); margin-bottom: 4px; }
@@ -187,7 +228,15 @@
         <!-- Карта положения -->
         <div class="card full-width">
             <h2>Положение дрона (вид сверху)</h2>
-            <canvas id="position-map" height="320"></canvas>
+            <div class="map-wrap">
+                <canvas id="position-map" height="640"></canvas>
+                <div class="map-controls">
+                    <button id="map-zoom-in" title="Приблизить">+</button>
+                    <button id="map-zoom-out" title="Отдалить">−</button>
+                    <button id="map-zoom-reset" title="Сброс (1 км)">⌖</button>
+                </div>
+                <div class="map-scale" id="map-scale">радиус: 1.0 км</div>
+            </div>
             <div class="pos-info">
                 <div class="pos-stat"><div class="lbl">X (Восток)</div><div class="val" id="pos-x">—</div></div>
                 <div class="pos-stat"><div class="lbl">Y (Север)</div><div class="val" id="pos-y">—</div></div>
@@ -201,24 +250,9 @@
             <div class="sensor-dot-legend">
                 <div class="dot-item"><span class="dot-swatch" style="background:#ff9100"></span>Радар</div>
                 <div class="dot-item"><span class="dot-swatch" style="background:#26c6da"></span>Видео</div>
-                <div class="dot-item"><span class="dot-swatch" style="background:#66bb6a"></span>РЧ (только дальность)</div>
-                <div class="dot-item"><span class="dot-swatch" style="background:#ab47bc"></span>Аудио (только дальность)</div>
+                <div class="dot-item"><span class="dot-swatch" style="background:#66bb6a"></span>РЧ (массив)</div>
+                <div class="dot-item"><span class="dot-swatch" style="background:#ab47bc"></span>Аудио (массив)</div>
                 <div class="dot-item"><span class="dot-swatch" style="background:#fff; border:2px solid #448aff"></span>Слияние</div>
-            </div>
-        </div>
-
-        <!-- Детали сенсоров -->
-        <div class="card">
-            <h2>Детали сенсоров</h2>
-            <div class="meta-grid" id="metadata-grid">
-                <div class="meta-item"><div class="lbl">Аудио ОСШ</div><div class="val" id="m-audio-snr">—</div></div>
-                <div class="meta-item"><div class="lbl">Аудио частота</div><div class="val" id="m-audio-freq">—</div></div>
-                <div class="meta-item"><div class="lbl">Класс (видео)</div><div class="val" id="m-video-class">—</div></div>
-                <div class="meta-item"><div class="lbl">Рамка (видео)</div><div class="val" id="m-video-bbox">—</div></div>
-                <div class="meta-item"><div class="lbl">Дальность радара</div><div class="val" id="m-radar-range">—</div></div>
-                <div class="meta-item"><div class="lbl">Высота (радар)</div><div class="val" id="m-radar-alt">—</div></div>
-                <div class="meta-item"><div class="lbl">Протокол РЧ</div><div class="val" id="m-rf-proto">—</div></div>
-                <div class="meta-item"><div class="lbl">РЧ RSSI</div><div class="val" id="m-rf-rssi">—</div></div>
             </div>
         </div>
 
@@ -340,25 +374,6 @@ socket.on('sensor_update', (d) => {
         if (s) setBar(key, s.confidence);
     }
 
-    // Метаданные
-    if (sensors.audio) {
-        document.getElementById('m-audio-snr').textContent = (sensors.audio.metadata.snr_db ?? '—') + ' дБ';
-        document.getElementById('m-audio-freq').textContent = (sensors.audio.metadata.dominant_freq_hz ?? '—') + ' Гц';
-    }
-    if (sensors.video) {
-        document.getElementById('m-video-class').textContent = sensors.video.metadata.detected_class || '—';
-        const bb = sensors.video.metadata.bbox;
-        document.getElementById('m-video-bbox').textContent = bb ? `${bb.x},${bb.y} ${bb.w}×${bb.h}` : '—';
-    }
-    if (sensors.radar) {
-        document.getElementById('m-radar-range').textContent = (sensors.radar.metadata.range_m ?? '—') + ' м';
-        document.getElementById('m-radar-alt').textContent = (sensors.radar.metadata.altitude_m ?? '—') + ' м';
-    }
-    if (sensors.rf) {
-        document.getElementById('m-rf-proto').textContent = sensors.rf.metadata.protocol || '—';
-        document.getElementById('m-rf-rssi').textContent = (sensors.rf.metadata.rssi_dbm ?? '—') + ' дБм';
-    }
-
     // Карта положения
     const sensorLocs = {};
     for (const [key, s] of Object.entries(sensors)) {
@@ -400,21 +415,41 @@ const posCtx = posCanvas.getContext('2d');
 
 const SENSOR_COLORS = { radar: '#ff9100', video: '#26c6da', rf: '#66bb6a', audio: '#ab47bc' };
 
+// Фиксированный радиус карты (метры).  По умолчанию 1 км; меняется кнопками
+// зума и колесом мыши; clamp в [50 м … 50 км].
+const MAP_DEFAULT_RANGE_M = 1000;
+const MAP_MIN_RANGE_M = 50;
+const MAP_MAX_RANGE_M = 50000;
+let mapRange = MAP_DEFAULT_RANGE_M;
+
+// Кэш последнего пакета, чтобы можно было перерисовывать карту по зуму
+// независимо от прихода нового sensor_update.
+let lastFusedLoc = null;
+let lastSensorLocs = {};
+
+function formatRange(m) {
+    return m >= 1000 ? (m / 1000).toFixed(m >= 10000 ? 0 : 1) + ' км' : Math.round(m) + ' м';
+}
+
+function setMapRange(r) {
+    mapRange = Math.max(MAP_MIN_RANGE_M, Math.min(MAP_MAX_RANGE_M, r));
+    document.getElementById('map-scale').textContent = 'радиус: ' + formatRange(mapRange);
+    drawPositionMap(lastFusedLoc, lastSensorLocs);
+}
+
 function drawPositionMap(fusedLoc, sensorLocs) {
+    lastFusedLoc = fusedLoc;
+    lastSensorLocs = sensorLocs;
+
     const W = posCanvas.offsetWidth;
-    const H = 320;
+    const H = 640;
     posCanvas.width  = W;
     posCanvas.height = H;
     const ctx = posCtx;
 
     ctx.clearRect(0, 0, W, H);
 
-    let maxRange = 500;
-    if (fusedLoc) maxRange = Math.max(maxRange, fusedLoc.range_m + fusedLoc.uncertainty_m + 50);
-    for (const loc of Object.values(sensorLocs)) {
-        if (loc && loc.range_m) maxRange = Math.max(maxRange, loc.range_m + (loc.uncertainty_m || 0) + 50);
-    }
-
+    const maxRange = mapRange;
     const margin = 40;
     const scale = Math.min((W / 2 - margin), (H / 2 - margin)) / maxRange;
     const cx = W / 2, cy = H / 2;
@@ -506,6 +541,20 @@ function drawPositionMap(fusedLoc, sensorLocs) {
     ctx.font = '10px sans-serif';
     ctx.fillText('сенсоры', cx + 6, cy + 12);
 }
+
+// --- Управление зумом карты ---
+document.getElementById('map-zoom-in').addEventListener('click', () => setMapRange(mapRange / 1.5));
+document.getElementById('map-zoom-out').addEventListener('click', () => setMapRange(mapRange * 1.5));
+document.getElementById('map-zoom-reset').addEventListener('click', () => setMapRange(MAP_DEFAULT_RANGE_M));
+
+posCanvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const factor = e.deltaY < 0 ? 1 / 1.2 : 1.2;
+    setMapRange(mapRange * factor);
+}, { passive: false });
+
+// Инициализация подписи масштаба
+setMapRange(mapRange);
 
 function updatePositionPanel(loc) {
     if (!loc) {

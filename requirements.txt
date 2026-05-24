@@ -1,2 +1,7 @@
 flask>=3.0
 flask-socketio>=5.3
+torch
+numpy
+pandas
+librosa
+ultralytics
