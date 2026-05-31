@@ -62,7 +62,7 @@ def _build_sensors(ground_truth: SimulationGroundTruth) -> dict:
     )
     rf_backend = _try_load(
         load_rf_backend,
-        "weights/rf-mlp_best.pt",
+        "weights/rf-resnet-1d_best.pt",
         "data/Noisy Drone RF Signal Classification/dataset.pt",
         DEVICE,
     )

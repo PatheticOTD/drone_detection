@@ -3,7 +3,21 @@
     "allow": [
       "Bash(python3)",
       "Bash(python -c ' *)",
-      "Bash(python3 -c ' *)"
+      "Bash(python3 -c ' *)",
+      "Bash(python3 -)",
+      "Bash(python3 _build_section5.py)",
+      "Bash(python3 -c \"import zipfile; print\\('restored OK, testzip:', zipfile.ZipFile\\('Обнаружение_и_распознавание_дронов.docx'\\).testzip\\(\\)\\)\")",
+      "Bash(rm -rf /tmp/lo_render)",
+      "Bash(mkdir -p /tmp/lo_render)",
+      "Bash(timeout 120 soffice --headless --convert-to pdf --outdir /tmp/lo_render -env:UserInstallation=file:///tmp/lo_profile Обнаружение_и_распознавание_дронов.docx)",
+      "Bash(echo \"exit: $?\")",
+      "Read(//tmp/**)",
+      "Bash(cd /home/maxim/Documents/drone_detection-1 *)",
+      "Bash(fuser \"Обнаружение_и_распознавание_дронов_последняя_версия.docx\")",
+      "Bash(ps -p 20278 -o pid,comm,args)"
+    ],
+    "additionalDirectories": [
+      "/tmp/lo_render"
     ]
   }
 }

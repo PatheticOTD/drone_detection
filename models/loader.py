@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 
 from models.radar_model import RadarResNet
-from models.rf_model import RFMLP
+from models.rf_model import RFResNet1D
 from models.audio_model import AudioResNet
 
 
@@ -159,7 +159,7 @@ def load_audio_backend(weights: str, data_path: str, device: str = "cpu") -> Mod
 
 def load_rf_backend(weights: str, data_path: str, device: str = "cpu") -> ModelBackend:
     dataset = RFDataset(data_path)
-    model = RFMLP(input_size=32768, nc=7).to(device)
+    model = RFResNet1D(in_ch=2, nc=7).to(device)
     model.load_state_dict(torch.load(weights, map_location=device, weights_only=True))
     model.eval()
     return ModelBackend(model, dataset, device)
