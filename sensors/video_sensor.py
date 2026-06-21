@@ -40,13 +40,23 @@ class VideoSensor(BaseSensor):
     def _poll_nn(self) -> SensorReading:
         img_path = self._backend.next_sample()              # str path
         results = self._backend.model(img_path, verbose=False)
-        boxes = results[0].boxes
+        result = results[0]
+        boxes = result.boxes
 
-        if len(boxes) == 0:
+        # Restrict to drone-class detections when the model knows that class
+        # (AOD-4 fine-tuned model has "drone"; a generic COCO model does not,
+        # in which case we fall back to any detection).
+        drone_cls = {i for i, n in result.names.items() if "drone" in str(n).lower()}
+
+        candidates = list(range(len(boxes)))
+        if drone_cls:
+            candidates = [i for i in candidates if int(boxes.cls[i]) in drone_cls]
+
+        if not candidates:
             confidence = 0.0
             bbox = None
         else:
-            best_idx = int(boxes.conf.argmax())
+            best_idx = max(candidates, key=lambda i: float(boxes.conf[i]))
             best = boxes[best_idx]
             confidence = float(best.conf)
             x1, y1, x2, y2 = best.xyxy[0].tolist()

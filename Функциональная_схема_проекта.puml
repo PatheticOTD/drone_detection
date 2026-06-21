@@ -1,0 +1,51 @@
+@startuml
+title Обобщённая функциональная схема программного обеспечения
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam defaultFontName SansSerif
+skinparam defaultFontSize 13
+skinparam ArrowColor #555555
+skinparam activity {
+  BorderColor #333333
+  BackgroundColor #FFFFFF
+  DiamondBorderColor #333333
+  DiamondBackgroundColor #FFFFFF
+  StartColor #333333
+  StopColor #333333
+}
+
+start
+:Запуск программы;
+:Загрузка конфигурации;
+
+repeat
+  fork
+    :Радиолокационный канал;
+  fork again
+    :Акустический канал;
+  fork again
+    :Радиочастотный канал;
+  fork again
+    :Видеоканал;
+  end fork
+
+  :Слияние показаний
+  и определение местоположения;
+
+  if (Дрон обнаружен?) then (да)
+    :Оценка уровня угрозы
+    и координат цели;
+  else (нет)
+  endif
+
+  :Отображение на дашборде
+  (уверенность каналов, карта цели, журнал);
+
+repeat while (Продолжать работу?) is (да)
+->нет;
+
+:Завершение работы;
+stop
+
+@enduml

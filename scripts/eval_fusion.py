@@ -70,11 +70,13 @@ def run_cycles(n_cycles: int, drone_present: bool, disabled: tuple = ()) -> dict
         readings = {}
         for name, s in sensors.items():
             if name in disabled:
-                # Disabled channel: zero confidence, marked not detected
+                # Disabled channel: offline/failed — excluded from fusion so the
+                # remaining channels' weights renormalise (graceful degradation).
                 from sensors.base import SensorReading
                 readings[name] = SensorReading(
                     sensor_type=name, timestamp=time.time(),
                     confidence=0.0, detected=False, metadata={"mode": "off"},
+                    available=False,
                 )
             else:
                 readings[name] = s.poll()

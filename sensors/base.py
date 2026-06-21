@@ -36,6 +36,7 @@ class SensorReading:
     detected: bool
     metadata: dict = field(default_factory=dict)
     location: Optional[LocationEstimate] = None
+    available: bool = True     # False = channel offline/failed; excluded from fusion
 
 
 class BaseSensor(abc.ABC):

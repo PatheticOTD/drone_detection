@@ -1,0 +1,131 @@
+<mxfile host="app.diagrams.net" agent="claude-code" version="24.0.0">
+  <diagram id="drone-func-scheme" name="Функциональная схема">
+    <mxGraphModel dx="1422" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1300" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- ===================== CONTAINERS (layers) ===================== -->
+        <mxCell id="cSens" value="Слой сенсоров — наследуют BaseSensor, метод poll() → SensorReading" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;fontSize=12;fillColor=#DAE8FC;strokeColor=#6C8EBF;opacity=40;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="170" width="820" height="150" as="geometry" />
+        </mxCell>
+        <mxCell id="cFus" value="Слой слияния и определения местоположения" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;fontSize=12;fillColor=#F8CECC;strokeColor=#B85450;opacity=40;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="430" width="820" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="cWeb" value="Веб-интерфейс (Flask + Flask-SocketIO)" style="rounded=1;whiteSpace=wrap;html=1;verticalAlign=top;fontStyle=1;fontSize=12;fillColor=#E1D5E7;strokeColor=#9673A6;opacity=40;dashed=1;" vertex="1" parent="1">
+          <mxGeometry x="40" y="650" width="820" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== ENTRY ===================== -->
+        <mxCell id="main" value="main.py — точка входа&#10;sensor_loop(): циклический опрос, fuse(), broadcast" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="270" y="40" width="340" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="config" value="config.py — конфигурация&#10;SENSOR_WEIGHTS · DETECTION_THRESHOLD&#10;позиции датчиков и массивов · CAMERA_CONFIG" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFE6CC;strokeColor=#D79B00;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="900" y="40" width="340" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== SENSORS ===================== -->
+        <mxCell id="sRadar" value="RadarSensor&#10;дальностно-скоростная&#10;карта 11×61" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="70" y="230" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sAudio" value="AudioSensor&#10;массив из 4 микрофонов&#10;SNR → дальность" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="270" y="230" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sRF" value="RFSensor&#10;массив из 4 приёмников&#10;RSSI → дальность" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="470" y="230" width="180" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="sVideo" value="VideoSensor&#10;кадр → рамка&#10;макс. достоверности" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#DAE8FC;strokeColor=#6C8EBF;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="670" y="230" width="170" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== HELPERS (right) ===================== -->
+        <mxCell id="models" value="Нейросетевые модели (ModelBackend)&#10;RadarResNet · AudioResNet&#10;RF-ResNet-1D · YOLOv8n&#10;режим симуляции при отсутствии весов" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#D5E8D4;strokeColor=#82B366;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="175" width="340" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="simgt" value="SimulationGroundTruth&#10;единое истинное положение дрона&#10;для акустического и РЧ массивов" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D6B656;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="900" y="290" width="340" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== DATA MARKER ===================== -->
+        <mxCell id="sr" value="4 × SensorReading&#10;sensor_type · confidence∈[0,1] · detected · location" style="shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="270" y="350" width="420" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== FUSION ===================== -->
+        <mxCell id="fe" value="FusionEngine.fuse()&#10;взвешенная уверенность (формула 1)&#10;порог обнаружения · уровень угрозы" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="270" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="loc" value="fusion/localization.py&#10;trilaterate() — ЛНК по массивам&#10;обратное взвешивание по дисперсии" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="380" y="490" width="220" height="90" as="geometry" />
+        </mxCell>
+        <mxCell id="fr" value="FusionResult&#10;fused_confidence · threat_level&#10;location · weights_used" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8CECC;strokeColor=#B85450;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="630" y="490" width="200" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== WEB ===================== -->
+        <mxCell id="http" value="HTTP-маршруты&#10;/  ·  /api/weights&#10;/api/threshold  ·  /api/history" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="80" y="710" width="250" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="ws" value="WebSocket&#10;событие sensor_update&#10;рассылка в реальном времени" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="360" y="710" width="200" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="dash" value="HTML-дашборд оператора&#10;уверенность каналов · график&#10;карта цели · управление весами" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1D5E7;strokeColor=#9673A6;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="590" y="710" width="240" height="110" as="geometry" />
+        </mxCell>
+
+        <!-- ===================== EDGES ===================== -->
+        <mxCell id="e_cfg_main" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;" edge="1" parent="1" source="config" target="main">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_main_sens" value="sensor_loop: poll() каждые SENSOR_POLL_INTERVAL" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;fontSize=10;" edge="1" parent="1" source="main" target="cSens">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_models_sens" value="инференс по каналам:&#10;next_sample() → probs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;endArrow=classic;fontSize=10;" edge="1" parent="1" source="models" target="cSens">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_simgt_sens" value="истинное положение →&#10;дальности с шумом (audio, rf)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;dashed=1;fontSize=10;" edge="1" parent="1" source="simgt" target="cSens">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_r_sr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;" edge="1" parent="1" source="sRadar" target="sr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_a_sr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;" edge="1" parent="1" source="sAudio" target="sr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_f_sr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;" edge="1" parent="1" source="sRF" target="sr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_v_sr" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;" edge="1" parent="1" source="sVideo" target="sr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_sr_fe" value="Dict[str, SensorReading]" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;fontSize=10;" edge="1" parent="1" source="sr" target="fe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fe_loc" value="трилатерация&#10;массивов (audio, rf)" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;startArrow=classic;endArrow=classic;fontSize=10;" edge="1" parent="1" source="fe" target="loc">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_fe_fr" value="результат слияния" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;fontSize=10;" edge="1" parent="1" source="fe" target="fr">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="e_fr_ws" value="broadcast_update() → JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;fontSize=10;" edge="1" parent="1" source="fr" target="ws">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_ws_dash" value="событие sensor_update" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;fontSize=10;" edge="1" parent="1" source="ws" target="dash">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_dash_http" value="управление: веса, порог" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;fontSize=10;" edge="1" parent="1" source="dash" target="http">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_http_fe" value="update_weights() / update_threshold()" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;dashed=1;fontSize=10;exitX=1;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="1" source="http" target="fe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_cfg_fe" value="SENSOR_WEIGHTS,&#10;DETECTION_THRESHOLD" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=classic;dashed=1;fontSize=10;" edge="1" parent="1" source="config" target="fe">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

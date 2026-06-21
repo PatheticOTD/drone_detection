@@ -68,7 +68,7 @@ def _build_sensors(ground_truth: SimulationGroundTruth) -> dict:
     )
     video_backend = _try_load(
         load_video_backend,
-        "weights/yolov8n.pt",
+        "weights/yolo8n-best.pt",
         "data/Airborne-Object-Detection-4-AOD4.yolov8/train/images",
         DEVICE,
     )

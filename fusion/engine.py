@@ -102,6 +102,12 @@ class FusionEngine:
             w = self.weights.get(sensor_name, 0.0)
             if w <= 0:
                 continue
+            # An offline/failed channel is excluded entirely so the remaining
+            # weights renormalise over the active channels (graceful
+            # degradation).  A channel that is online but sees nothing reports
+            # confidence ~0 with available=True and still counts as evidence.
+            if not reading.available:
+                continue
             weighted_sum += w * reading.confidence
             total_weight += w
             used_weights[sensor_name] = w
@@ -132,7 +138,7 @@ class FusionEngine:
         """Fuse per-sensor location estimates into a single best-estimate position.
 
         Uses inverse-variance weighting scaled by sensor confidence:
-            w_i = confidence_i / uncertainty_i²
+            w_i = confidence_i / uncertainty_i^2
 
         Only estimates that include a bearing (i.e. have a real x/y derived
         from direction, not just the sensor's own position) are used for XY
